@@ -339,6 +339,38 @@ node feishu_oauth.js check
 https://open.feishu.cn/open-apis/authen/v1/authorize?app_id=cli_a92cc69bba7a9bdb&redirect_uri=https%3A%2F%2Fstxl117.top%2Fpomodoro%2Fcallback&scope=calendar%3Acalendar+calendar%3Acalendar_event
 ```
 
+---
+
+### Feishu Task Integration ✨ NEW
+
+**创建飞书任务，自动提醒：**
+
+```
+用户：设置番茄钟 写代码，创建飞书任务
+助手：🍅 番茄钟已启动！
+  ✅ 飞书任务已创建！
+    Task ID: xxx
+```
+
+**使用方式：**
+```bash
+# 创建番茄钟 + 飞书任务
+pomodoro.sh start "写代码" --feishu-task
+
+# 同时创建日程和任务
+pomodoro.sh start "开会" --feishu-calendar --feishu-task
+```
+
+**特点：**
+- ✅ 任务会出现在飞书任务列表
+- ✅ 自动设置截止时间
+- ✅ 你作为执行者和关注者
+- ✅ 会收到任务提醒通知
+
+**权限要求：**
+- 飞书开放平台 → 权限管理
+- 添加：`task:task` 或 `task:task:writeonly`
+
 ## Troubleshooting
 
 **No notification on completion:**
