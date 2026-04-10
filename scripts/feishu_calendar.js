@@ -1,8 +1,8 @@
 const lark = require('/home/admin/.openclaw/extensions/feishu/node_modules/@larksuiteoapi/node-sdk');
 
-// 飞书配置
 const APP_ID = 'cli_a92cc69bba7a9bdb';
 const APP_SECRET = 'vZRyj62CrZYzmZ9TCbNaxgGpDBl4xuBs';
+const USER_OPEN_ID = 'ou_5fb14b2ab73536f8719d9f92cb66831d';
 
 const client = new lark.Client({
   appId: APP_ID,
@@ -10,12 +10,10 @@ const client = new lark.Client({
   appType: lark.AppType.SelfBuild,
 });
 
-// 创建日程
+// 步骤1: 创建日程
 async function createEvent(summary, startTime, endTime, description = '') {
   try {
-    const calendarId = 'primary';
-    
-    console.log('Creating event in primary calendar...');
+    console.log('Step 1: Creating event...');
     
     const response = await client.calendar.calendarEvent.create({
       data: {
@@ -30,18 +28,47 @@ async function createEvent(summary, startTime, endTime, description = '') {
           timestamp: endTime.toString(),
           timezone: 'Asia/Shanghai'
         },
-        reminders: [{ minutes: 0 }],
-        // 添加用户为参与者
+        reminders: [{ minutes: 0 }]
+      },
+      path: {
+        calendar_id: 'primary'
+      }
+    });
+    
+    if (response.code !== 0) {
+      console.error('Create event error:', response.msg);
+      return null;
+    }
+    
+    const eventId = response.data?.event?.event_id;
+    console.log('✅ Event created:', eventId);
+    
+    return eventId;
+    
+  } catch (error) {
+    console.error('Failed to create event:', error.message);
+    return null;
+  }
+}
+
+// 步骤2: 邀请用户加入日程
+async function addAttendee(calendarId, eventId) {
+  try {
+    console.log('Step 2: Adding attendee...');
+    
+    const response = await client.calendar.calendarEventAttendee.create({
+      data: {
         attendees: [
           {
             type: 'user',
-            user_id: 'ou_5fb14b2ab73536f8719d9f92cb66831d',
-            option: 'accept'
+            user_id: USER_OPEN_ID
           }
-        ]
+        ],
+        need_notification: true  // 发送通知
       },
       path: {
-        calendar_id: calendarId
+        calendar_id: calendarId,
+        event_id: eventId
       },
       params: {
         user_id_type: 'open_id'
@@ -49,24 +76,19 @@ async function createEvent(summary, startTime, endTime, description = '') {
     });
     
     if (response.code !== 0) {
-      console.error('Error:', response.msg);
-      return null;
+      console.error('Add attendee error:', response.msg);
+      console.log('Full error:', JSON.stringify(response, null, 2));
+      return false;
     }
     
-    const eventId = response.data?.event?.event_id;
-    console.log('✅ Event created:', eventId);
-    console.log('');
-    console.log('📋 查看日程方式:');
-    console.log('  1. 打开飞书日历');
-    console.log('  2. 查看左侧"其他日历"或搜索日程标题');
-    console.log('  3. 日程已添加你为参与者');
-    console.log('');
-    console.log('💡 提示: 使用用户授权后日程会直接在你的日历中');
+    console.log('✅ Attendee added!');
+    console.log('  User should receive notification now.');
     
-    return eventId;
+    return true;
+    
   } catch (error) {
-    console.error('Failed to create event:', error.message);
-    return null;
+    console.error('Failed to add attendee:', error.message);
+    return false;
   }
 }
 
@@ -82,9 +104,24 @@ async function main() {
       const endTime = parseInt(args[3]) || startTime + 25 * 60;
       const description = args[4] || '';
       
+      // 步骤1: 创建日程
       const eventId = await createEvent(summary, startTime, endTime, description);
+      
       if (eventId) {
-        console.log('Event ID:', eventId);
+        // 步骤2: 邀请用户
+        const success = await addAttendee('primary', eventId);
+        
+        if (success) {
+          console.log('Event ID:', eventId);
+          console.log('');
+          console.log('📋 完成流程:');
+          console.log('  1. ✅ 日程已创建');
+          console.log('  2. ✅ 已邀请你加入日程');
+          console.log('  3. 📨 应该会收到飞书通知');
+        } else {
+          console.log('Event ID:', eventId);
+          console.log('⚠️ 邀请失败，日程已创建但用户可能收不到通知');
+        }
       }
       break;
       
