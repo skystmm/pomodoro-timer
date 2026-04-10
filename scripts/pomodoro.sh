@@ -1,6 +1,6 @@
 #!/bin/bash
 # Pomodoro Timer Script
-# Usage: ./pomodoro.sh <action> [options]
+# Simplified version - keeps core features only
 
 set -e
 
@@ -11,7 +11,6 @@ CALENDAR_FILE="$POMODORO_DIR/calendar.ics"
 # Default durations (minutes)
 DEFAULT_WORK=25
 DEFAULT_SHORT_BREAK=5
-DEFAULT_LONG_BREAK=15
 
 # Ensure directory exists
 mkdir -p "$POMODORO_DIR"
@@ -37,16 +36,12 @@ usage() {
     echo "  --break=N                Set break duration (default: $DEFAULT_SHORT_BREAK min)"
     echo "  --no-calendar            Skip iCal export"
     echo "  --feishu-calendar        Create event in Feishu calendar"
-    echo "  --feishu-task            Create task in Feishu Tasks"
     echo ""
     echo "Examples:"
     echo "  $0 start '写代码' 25"
-    echo "  $0 start '阅读文档' --work=30 --break=10"
     echo "  $0 start '开会' --feishu-calendar"
-    echo "  $0 start '写代码' --feishu-task"
     echo "  $0 status"
     echo "  $0 list today"
-    echo "  $0 stats 7"
     exit 1
 }
 
@@ -61,13 +56,7 @@ format_time() {
     date -d "@$ts" '+%Y-%m-%d %H:%M:%S'
 }
 
-# Format timestamp to iCal format
-format_ical() {
-    local ts=$1
-    date -d "@$ts" '+%Y%m%dT%H%M%S'
-}
-
-# Generate iCal content for a session
+# Generate iCal content
 generate_ical() {
     local task="$1"
     local start_ts="$2"
@@ -79,9 +68,9 @@ generate_ical() {
     cat <<EOF
 BEGIN:VEVENT
 UID:$uid
-DTSTAMP:$(format_ical $(timestamp))
-DTSTART:$(format_ical $start_ts)
-DTEND:$(format_ical $end_ts)
+DTSTAMP:$(date -d "@$start_ts" '+%Y%m%dT%H%M%S')
+DTSTART:$(date -d "@$start_ts" '+%Y%m%dT%H%M%S')
+DTEND:$(date -d "@$end_ts" '+%Y%m%dT%H%M%S')
 SUMMARY:🍅 $task
 DESCRIPTION:Pomodoro session - ${duration} minutes
 CATEGORIES:Pomodoro
@@ -96,27 +85,18 @@ EOF
 
 # Save session to log
 save_session() {
-    local task="$1"
-    local start_ts="$2"
-    local end_ts="$3"
-    local duration="$4"
-    local status="$5"
-    
-    local tmp_file=$(mktemp)
-    
     python3 << EOF
 import json
-import sys
 
 with open('$LOG_FILE', 'r') as f:
     data = json.load(f)
 
 session = {
-    'task': '$task',
-    'start': $start_ts,
-    'end': $end_ts,
-    'duration': $duration,
-    'status': '$status'
+    'task': '$1',
+    'start': $2,
+    'end': $3,
+    'duration': $4,
+    'status': '$5'
 }
 
 data['sessions'].append(session)
@@ -133,7 +113,6 @@ start_pomodoro() {
     local break_duration="${3:-$DEFAULT_SHORT_BREAK}"
     local no_calendar="${4:-false}"
     local feishu_calendar="${5:-false}"
-    local feishu_task="${6:-false}"
     
     local start_ts=$(timestamp)
     local end_ts=$((start_ts + duration * 60))
@@ -150,7 +129,6 @@ start_pomodoro() {
 }
 EOF
     
-    # Output session info
     echo "🍅 Pomodoro Started!"
     echo "  Task: $task"
     echo "  Duration: ${duration} minutes"
@@ -181,46 +159,30 @@ EOF
         fi
     fi
     
-    # Create Feishu task
-    if [ "$feishu_task" = "true" ]; then
-        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        local task_id=$(node "$script_dir/feishu_task.js" create "🍅 $task" "$duration" "番茄钟 - ${duration}分钟" 2>&1 | grep "Task ID:" | awk '{print $3}')
-        
-        if [ -n "$task_id" ]; then
-            echo "✅ 飞书任务已创建！"
-            echo "  Task ID: $task_id"
-        else
-            echo "⚠️ 飞书任务创建失败"
-        fi
-    fi
-    
     # Send notification at the end (background)
     (
         sleep $((duration * 60))
         
         # Update status
         if [ -f "$POMODORO_DIR/current.json" ]; then
-            python3 << 'PYEOF'
+            python3 - "$POMODORO_DIR/current.json" << 'PYEOF'
 import json
-with open('$POMODORO_DIR/current.json', 'r') as f:
+import sys
+with open(sys.argv[1], 'r') as f:
     data = json.load(f)
 data['status'] = 'completed'
-with open('$POMODORO_DIR/current.json', 'w') as f:
+with open(sys.argv[1], 'w') as f:
     json.dump(data, f, indent=2)
 PYEOF
         fi
         
-        # Send notification
         notify-send "🍅 Pomodoro Complete!" "Time for a ${break_duration} minute break!" 2>/dev/null || true
-        
-        # Log completion
         save_session "$task" "$start_ts" "$end_ts" "$duration" "completed"
         
     ) &
     
     echo ""
     echo "⏰ You will be notified when the pomodoro ends."
-    echo "Use 'pomodoro.sh status' to check progress."
 }
 
 # Stop current pomodoro
@@ -232,19 +194,17 @@ stop_pomodoro() {
     
     local current=$(cat "$POMODORO_DIR/current.json")
     
-    # Get task info
     local task=$(echo "$current" | python3 -c "import json,sys; print(json.load(sys.stdin)['task'])")
     local start_ts=$(echo "$current" | python3 -c "import json,sys; print(json.load(sys.stdin)['start'])")
-    local duration=$(echo "$current" | python3 -c "import json,sys; print(json.load(sys.stdin)['duration'])")
     
-    # Update status
-    python3 << EOF
+    python3 - "$POMODORO_DIR/current.json" << 'EOF'
 import json
-with open('$POMODORO_DIR/current.json', 'r') as f:
+import sys
+with open(sys.argv[1], 'r') as f:
     data = json.load(f)
 data['status'] = 'stopped'
-data['end'] = $(timestamp)
-with open('$POMODORO_DIR/current.json', 'w') as f:
+data['end'] = int(__import__('datetime').datetime.now().timestamp())
+with open(sys.argv[1], 'w') as f:
     json.dump(data, f, indent=2)
 EOF
     
@@ -252,7 +212,6 @@ EOF
     echo "  Task: $task"
     echo "  Started: $(format_time $start_ts)"
     
-    # Kill background process
     pkill -f "pomodoro-$$" 2>/dev/null || true
 }
 
@@ -260,12 +219,8 @@ EOF
 show_status() {
     if [ ! -f "$POMODORO_DIR/current.json" ]; then
         echo "📭 No active pomodoro session."
-        echo ""
-        echo "Start one with: pomodoro.sh start <task> [duration]"
         exit 0
     fi
-    
-    local current=$(cat "$POMODORO_DIR/current.json")
     
     python3 - "$POMODORO_DIR/current.json" << 'PYEOF'
 import json
@@ -275,9 +230,8 @@ from datetime import datetime
 with open(sys.argv[1], 'r') as f:
     data = json.load(f)
 
-status = data.get('status', 'unknown')
-if status != 'running':
-    print(f"❌ Pomodoro {status}")
+if data.get('status') != 'running':
+    print(f"❌ Pomodoro {data.get('status', 'unknown')}")
     sys.exit(0)
 
 task = data['task']
@@ -299,23 +253,13 @@ secs = remaining % 60
 print(f"🍅 Pomodoro in Progress")
 print(f"   Task: {task}")
 print(f"   Duration: {duration} minutes")
-print(f"   Started: {datetime.fromtimestamp(start).strftime('%H:%M:%S')}")
-print(f"   Ends: {datetime.fromtimestamp(end).strftime('%H:%M:%S')}")
-print(f"")
-print(f"⏳ Time remaining: {mins:02d}:{secs:02d}")
+print(f"   Remaining: {mins:02d}:{secs:02d}")
 PYEOF
 }
 
 # List sessions
 list_sessions() {
-    local date_filter="$1"
-    
-    if [ ! -f "$LOG_FILE" ]; then
-        echo "📭 No sessions recorded yet."
-        exit 0
-    fi
-    
-    python3 << EOF
+    python3 << 'PYEOF'
 import json
 from datetime import datetime, timedelta
 
@@ -325,7 +269,7 @@ with open('$LOG_FILE', 'r') as f:
 sessions = data.get('sessions', [])
 
 # Filter by date
-date_filter = '$date_filter'
+date_filter = '$1'
 if date_filter and date_filter != 'all':
     now = datetime.now()
     if date_filter == 'today':
@@ -340,14 +284,14 @@ if date_filter and date_filter != 'all':
     sessions = [s for s in sessions if s['start'] >= start_ts]
 
 if not sessions:
-    print("📭 No sessions found for the specified period.")
+    print("📭 No sessions found.")
     exit(0)
 
 print(f"📋 Pomodoro Sessions ({date_filter or 'all'})")
 print("=" * 60)
 
 total_minutes = 0
-for i, s in enumerate(reversed(sessions[-20:]), 1):  # Show last 20
+for i, s in enumerate(reversed(sessions[-20:]), 1):
     task = s['task'][:30]
     start = datetime.fromtimestamp(s['start']).strftime('%m-%d %H:%M')
     duration = s['duration']
@@ -357,20 +301,13 @@ for i, s in enumerate(reversed(sessions[-20:]), 1):  # Show last 20
     total_minutes += duration
 
 print("=" * 60)
-print(f"Total: {len(sessions)} sessions, {total_minutes} minutes ({total_minutes//60}h {total_minutes%60}m)")
-EOF
+print(f"Total: {len(sessions)} sessions, {total_minutes} minutes")
+PYEOF
 }
 
 # Show statistics
 show_stats() {
-    local days="${1:-7}"
-    
-    if [ ! -f "$LOG_FILE" ]; then
-        echo "📭 No sessions recorded yet."
-        exit 0
-    fi
-    
-    python3 << EOF
+    python3 << 'PYEOF'
 import json
 from datetime import datetime, timedelta
 
@@ -378,9 +315,8 @@ with open('$LOG_FILE', 'r') as f:
     data = json.load(f)
 
 sessions = data.get('sessions', [])
-days = $days
+days = $1
 
-# Filter to last N days
 now = datetime.now()
 start = now - timedelta(days=days)
 start_ts = int(start.timestamp())
@@ -395,26 +331,13 @@ total_sessions = len(recent)
 total_minutes = sum(s['duration'] for s in recent)
 completed = len([s for s in recent if s.get('status') == 'completed'])
 
-# Daily breakdown
-daily = {}
-for s in recent:
-    day = datetime.fromtimestamp(s['start']).strftime('%Y-%m-%d')
-    daily[day] = daily.get(day, 0) + s['duration']
-
 print(f"📊 Pomodoro Statistics (Last {days} days)")
 print("=" * 50)
 print(f"  Total sessions: {total_sessions}")
 print(f"  Completed: {completed} ({completed*100//total_sessions if total_sessions else 0}%)")
 print(f"  Total time: {total_minutes} minutes ({total_minutes//60}h {total_minutes%60}m)")
 print(f"  Daily average: {total_minutes//days if days else 0} minutes")
-print("")
-print("📅 Daily Breakdown:")
-for day in sorted(daily.keys(), reverse=True)[:7]:
-    mins = daily[day]
-    bar = '🍅' * min(mins // 25, 10)
-    print(f"  {day}: {mins:3}min {bar}")
-
-EOF
+PYEOF
 }
 
 # Parse arguments
@@ -428,7 +351,6 @@ case "$ACTION" in
         BREAK_DUR=""
         NO_CALENDAR="false"
         FEISHU_CALENDAR="false"
-        FEISHU_TASK="false"
         
         shift || true
         
@@ -446,9 +368,6 @@ case "$ACTION" in
                 --feishu-calendar)
                     FEISHU_CALENDAR="true"
                     ;;
-                --feishu-task)
-                    FEISHU_TASK="true"
-                    ;;
                 *)
                     if [ -z "$DURATION" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
                         DURATION="$1"
@@ -463,7 +382,7 @@ case "$ACTION" in
             usage
         fi
         
-        start_pomodoro "$TASK" "${DURATION:-$DEFAULT_WORK}" "${BREAK_DUR:-$DEFAULT_SHORT_BREAK}" "$NO_CALENDAR" "$FEISHU_CALENDAR" "$FEISHU_TASK"
+        start_pomodoro "$TASK" "${DURATION:-$DEFAULT_WORK}" "${BREAK_DUR:-$DEFAULT_SHORT_BREAK}" "$NO_CALENDAR" "$FEISHU_CALENDAR"
         ;;
     
     stop)
