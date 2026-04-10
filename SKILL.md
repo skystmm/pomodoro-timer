@@ -1,6 +1,6 @@
 ---
 name: pomodoro-timer
-description: "Pomodoro timer with reminders and calendar integration. Use when user asks to '设置番茄钟', '开始番茄钟', '番茄工作法', '定时提醒', or wants to track focused work sessions. Supports custom durations, break reminders, and exports sessions to calendar (iCal format)."
+description: "Pomodoro timer with reminders and calendar integration. Use when user asks to '设置番茄钟', '开始番茄钟', '番茄工作法', '定时提醒', or wants to track focused work sessions. Supports custom durations, break reminders, exports to iCal, and Feishu calendar integration."
 ---
 
 # Pomodoro Timer 🍅
@@ -19,6 +19,17 @@ Focus timer with reminders and calendar integration.
 
   会话 ID: pomodoro-12345
   📅 已写入日历
+```
+
+**Start with Feishu calendar:**
+```
+用户：设置一个番茄钟，同步到飞书日程
+助手：🍅 番茄钟已启动！
+  任务：专注工作
+  时长：25 分钟
+  
+  📅 飞书日程已创建！
+    Event ID: evt_xxx
 ```
 
 **Check status:**
@@ -41,6 +52,8 @@ Focus timer with reminders and calendar integration.
 - 停止番茄钟
 - 今日番茄钟
 - 番茄钟统计
+- 同步到飞书日程
+- 写入飞书日历
 
 ## Features
 
@@ -223,6 +236,8 @@ View history:
 
 ## Calendar Integration
 
+### iCal Export (Default)
+
 Sessions are automatically exported to iCal format:
 
 **File location:** `~/.openclaw/pomodoro/calendar.ics`
@@ -252,6 +267,38 @@ END:VALARM
 END:VEVENT
 ```
 
+### Feishu Calendar Integration
+
+**Enable Feishu calendar sync:**
+
+1. **Configure permissions in Feishu Open Platform:**
+   - Go to Feishu Open Platform (https://open.feishu.cn)
+   - Select your app
+   - Permissions → Add permission scopes:
+     - `calendar:calendar:readonly` - 获取日历
+     - `calendar:calendar_event:write` - 创建日程
+
+2. **Usage:**
+```
+用户：设置番茄钟 写代码，同步到飞书日程
+助手：[执行] scripts/pomodoro.sh start "写代码" --feishu-calendar
+```
+
+3. **Or specify in options:**
+```
+用户：番茄钟 专注工作，写入飞书日历
+助手：🍅 番茄钟已启动！
+  任务：专注工作
+  
+  📅 飞书日程已创建！
+    Event ID: evt_xxx
+```
+
+**Note:** Feishu calendar integration requires:
+- App configured with calendar permissions
+- User has authorized the app
+- Primary calendar exists
+
 ## Troubleshooting
 
 **No notification on completion:**
@@ -261,6 +308,11 @@ END:VEVENT
 **Calendar file not created:**
 - Ensure `~/.openclaw/pomodoro/` directory exists
 - Check write permissions
+
+**Feishu calendar not working:**
+- Check app has `calendar:calendar:readonly` and `calendar:calendar_event:write` permissions
+- Check user has authorized the app
+- Run `node scripts/feishu_calendar.js get-calendar` to test
 
 **Session not saved:**
 - Check `log.json` file permissions

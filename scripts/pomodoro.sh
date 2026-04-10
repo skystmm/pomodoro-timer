@@ -35,11 +35,13 @@ usage() {
     echo "Options:"
     echo "  --work=N                 Set work duration (default: $DEFAULT_WORK min)"
     echo "  --break=N                Set break duration (default: $DEFAULT_SHORT_BREAK min)"
-    echo "  --no-calendar            Skip calendar export"
+    echo "  --no-calendar            Skip iCal export"
+    echo "  --feishu-calendar        Create event in Feishu calendar"
     echo ""
     echo "Examples:"
     echo "  $0 start '写代码' 25"
     echo "  $0 start '阅读文档' --work=30 --break=10"
+    echo "  $0 start '开会' --feishu-calendar"
     echo "  $0 status"
     echo "  $0 list today"
     echo "  $0 stats 7"
@@ -128,6 +130,7 @@ start_pomodoro() {
     local duration="${2:-$DEFAULT_WORK}"
     local break_duration="${3:-$DEFAULT_SHORT_BREAK}"
     local no_calendar="${4:-false}"
+    local feishu_calendar="${5:-false}"
     
     local start_ts=$(timestamp)
     local end_ts=$((start_ts + duration * 60))
@@ -155,11 +158,24 @@ EOF
     # Save to log
     save_session "$task" "$start_ts" "$end_ts" "$duration" "started"
     
-    # Generate calendar entry
+    # Generate iCal entry
     if [ "$no_calendar" != "true" ]; then
         generate_ical "$task" "$start_ts" "$end_ts" "$duration" >> "$CALENDAR_FILE"
         echo ""
-        echo "📅 Calendar entry saved to: $CALENDAR_FILE"
+        echo "📅 iCal entry saved to: $CALENDAR_FILE"
+    fi
+    
+    # Create Feishu calendar event
+    if [ "$feishu_calendar" = "true" ]; then
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local event_id=$(node "$script_dir/feishu_calendar.js" create-event "🍅 $task" "$start_ts" "$end_ts" "番茄钟 - ${duration}分钟" 2>&1 | grep "Event ID:" | awk '{print $3}')
+        
+        if [ -n "$event_id" ]; then
+            echo "📅 飞书日程已创建！"
+            echo "  Event ID: $event_id"
+        else
+            echo "⚠️ 飞书日程创建失败"
+        fi
     fi
     
     # Send notification at the end (background)
@@ -235,7 +251,7 @@ show_status() {
     
     local current=$(cat "$POMODORO_DIR/current.json")
     
-    python3 << 'PYEOF'
+    python3 - "$POMODORO_DIR/current.json" << 'PYEOF'
 import json
 import sys
 from datetime import datetime
@@ -271,7 +287,7 @@ print(f"   Started: {datetime.fromtimestamp(start).strftime('%H:%M:%S')}")
 print(f"   Ends: {datetime.fromtimestamp(end).strftime('%H:%M:%S')}")
 print(f"")
 print(f"⏳ Time remaining: {mins:02d}:{secs:02d}")
-PYEOF "$POMODORO_DIR/current.json"
+PYEOF
 }
 
 # List sessions
@@ -395,6 +411,7 @@ case "$ACTION" in
         DURATION=""
         BREAK_DUR=""
         NO_CALENDAR="false"
+        FEISHU_CALENDAR="false"
         
         shift || true
         
@@ -408,6 +425,9 @@ case "$ACTION" in
                     ;;
                 --no-calendar)
                     NO_CALENDAR="true"
+                    ;;
+                --feishu-calendar)
+                    FEISHU_CALENDAR="true"
                     ;;
                 *)
                     if [ -z "$DURATION" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
@@ -423,7 +443,7 @@ case "$ACTION" in
             usage
         fi
         
-        start_pomodoro "$TASK" "${DURATION:-$DEFAULT_WORK}" "${BREAK_DUR:-$DEFAULT_SHORT_BREAK}" "$NO_CALENDAR"
+        start_pomodoro "$TASK" "${DURATION:-$DEFAULT_WORK}" "${BREAK_DUR:-$DEFAULT_SHORT_BREAK}" "$NO_CALENDAR" "$FEISHU_CALENDAR"
         ;;
     
     stop)
