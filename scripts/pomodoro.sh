@@ -37,11 +37,13 @@ usage() {
     echo "  --break=N                Set break duration (default: $DEFAULT_SHORT_BREAK min)"
     echo "  --no-calendar            Skip iCal export"
     echo "  --feishu-calendar        Create event in Feishu calendar"
+    echo "  --feishu-task            Create task in Feishu Tasks"
     echo ""
     echo "Examples:"
     echo "  $0 start '写代码' 25"
     echo "  $0 start '阅读文档' --work=30 --break=10"
     echo "  $0 start '开会' --feishu-calendar"
+    echo "  $0 start '写代码' --feishu-task"
     echo "  $0 status"
     echo "  $0 list today"
     echo "  $0 stats 7"
@@ -131,6 +133,7 @@ start_pomodoro() {
     local break_duration="${3:-$DEFAULT_SHORT_BREAK}"
     local no_calendar="${4:-false}"
     local feishu_calendar="${5:-false}"
+    local feishu_task="${6:-false}"
     
     local start_ts=$(timestamp)
     local end_ts=$((start_ts + duration * 60))
@@ -175,6 +178,19 @@ EOF
             echo "  Event ID: $event_id"
         else
             echo "⚠️ 飞书日程创建失败"
+        fi
+    fi
+    
+    # Create Feishu task
+    if [ "$feishu_task" = "true" ]; then
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local task_id=$(node "$script_dir/feishu_task.js" create "🍅 $task" "$duration" "番茄钟 - ${duration}分钟" 2>&1 | grep "Task ID:" | awk '{print $3}')
+        
+        if [ -n "$task_id" ]; then
+            echo "✅ 飞书任务已创建！"
+            echo "  Task ID: $task_id"
+        else
+            echo "⚠️ 飞书任务创建失败"
         fi
     fi
     
@@ -412,6 +428,7 @@ case "$ACTION" in
         BREAK_DUR=""
         NO_CALENDAR="false"
         FEISHU_CALENDAR="false"
+        FEISHU_TASK="false"
         
         shift || true
         
@@ -429,6 +446,9 @@ case "$ACTION" in
                 --feishu-calendar)
                     FEISHU_CALENDAR="true"
                     ;;
+                --feishu-task)
+                    FEISHU_TASK="true"
+                    ;;
                 *)
                     if [ -z "$DURATION" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
                         DURATION="$1"
@@ -443,7 +463,7 @@ case "$ACTION" in
             usage
         fi
         
-        start_pomodoro "$TASK" "${DURATION:-$DEFAULT_WORK}" "${BREAK_DUR:-$DEFAULT_SHORT_BREAK}" "$NO_CALENDAR" "$FEISHU_CALENDAR"
+        start_pomodoro "$TASK" "${DURATION:-$DEFAULT_WORK}" "${BREAK_DUR:-$DEFAULT_SHORT_BREAK}" "$NO_CALENDAR" "$FEISHU_CALENDAR" "$FEISHU_TASK"
         ;;
     
     stop)
