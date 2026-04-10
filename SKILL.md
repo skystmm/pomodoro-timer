@@ -269,35 +269,36 @@ END:VEVENT
 
 ### Feishu Calendar Integration
 
-**Enable Feishu calendar sync:**
+**Important Notes:**
 
-1. **Configure permissions in Feishu Open Platform:**
-   - Go to Feishu Open Platform (https://open.feishu.cn)
-   - Select your app
-   - Permissions → Add permission scopes:
-     - `calendar:calendar:readonly` - 获取日历
-     - `calendar:calendar_event:write` - 创建日程
+日程创建成功后，用户可能需要在飞书日历中手动查看：
 
-2. **Usage:**
+1. **打开飞书日历**
+2. **查看左侧日历列表** - 找到应用创建的日历
+3. **搜索日程标题** - 直接搜索"🍅 任务名"
+
+**当前限制：**
+- 使用应用身份创建日程，日程会在应用的日历中
+- 用户需要订阅应用的日历，或在"已邀请"列表中查看
+- 如果需要直接写入用户主日历，需要获取用户授权（user_access_token）
+
+**使用方法：**
 ```
 用户：设置番茄钟 写代码，同步到飞书日程
 助手：[执行] scripts/pomodoro.sh start "写代码" --feishu-calendar
 ```
 
-3. **Or specify in options:**
+**查看日程：**
 ```
-用户：番茄钟 专注工作，写入飞书日历
-助手：🍅 番茄钟已启动！
-  任务：专注工作
-  
-  📅 飞书日程已创建！
-    Event ID: evt_xxx
+1. 打开飞书日历应用
+2. 左侧日历列表中找到"平台开发"或应用名
+3. 勾选显示该日历
+4. 或直接搜索"🍅 写代码"
 ```
 
-**Note:** Feishu calendar integration requires:
-- App configured with calendar permissions
-- User has authorized the app
-- Primary calendar exists
+**配置要求：**
+- App 已配置日历权限：`calendar:calendar:readonly` 和 `calendar:calendar_event:write`
+- 日程会创建成功，但可能在应用的日历中而非用户主日历
 
 ## Troubleshooting
 
