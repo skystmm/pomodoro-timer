@@ -6,75 +6,97 @@ Focus timer with reminders and calendar integration for OpenClaw.
 
 - ⏱️ **Customizable Timer**: 25 min work + 5 min break (default, configurable)
 - 🔔 **Reminders**: Start/end notifications, break suggestions
-- 📅 **Calendar Integration**: Auto-export to iCal format
+- 📅 **iCal Export**: Auto-export to Google/Apple Calendar
 - 📊 **Statistics**: Track sessions, completion rate, daily/weekly reports
+- 📋 **Feishu Calendar**: Create events and invite users
 
 ## Installation
 
 ```bash
-# Copy to your OpenClaw skills directory
-cp -r pomodoro-timer ~/.openclaw/skills/
+# Clone the repository
+git clone https://github.com/skystmm/pomodoro-timer.git ~/.openclaw/skills/pomodoro-timer
 
 # Make script executable
 chmod +x ~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh
 ```
 
-## Usage
+## Quick Start
 
-### Start a Pomodoro
+### Basic Usage
 
-```
-用户：帮我设置一个番茄钟，我要写代码
-助手：🍅 番茄钟已启动！
-  任务：写代码
-  时长：25 分钟
-  结束时间：15:40
-```
+```bash
+# Start a 25-minute pomodoro
+~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh start "写代码"
 
-### Custom Duration
+# Start a 50-minute pomodoro
+~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh start "读论文" 50
 
-```
-用户：50 分钟番茄钟，研究论文
-助手：🍅 50 分钟番茄钟已启动！
-```
+# Check status
+~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh status
 
-### Check Status
+# Stop current pomodoro
+~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh stop
 
-```
-用户：番茄钟还有多久
-助手：🍅 番茄钟进行中
-  剩余时间：18:32
+# View today's sessions
+~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh list today
+
+# View statistics
+~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh stats 7
 ```
 
-### View History
+### Feishu Calendar Integration
 
-```
-用户：今天做了几个番茄钟
-助手：📋 今日番茄钟记录
-  1. ✅ 15:15 | 25min | 写代码
-  2. ✅ 16:00 | 25min | 写代码
-  总计：2 个会话，50 分钟
+```bash
+# Create pomodoro and sync to Feishu calendar
+~/.openclaw/skills/pomodoro-timer/scripts/pomodoro.sh start "开会" --feishu-calendar
 ```
 
-### Statistics
+**What happens:**
+1. ✅ Creates a calendar event
+2. ✅ Invites you as attendee
+3. 📨 You receive Feishu notification
+4. 📅 Event appears in your Feishu calendar
 
-```
-用户：这周番茄钟统计
-助手：📊 番茄钟统计（近 7 天）
-  总会话：28 次
-  完成率：89%
-  总时长：11h 40min
-```
+## Feishu Permission Requirements
 
-## Calendar Integration
+To use the Feishu calendar integration, you need to configure permissions in [Feishu Open Platform](https://open.feishu.cn):
 
-Sessions are automatically exported to iCal:
+### Required Permissions
 
-```
-~/.openclaw/pomodoro/calendar.ics
-```
+| Permission | Scope | Description |
+|------------|-------|-------------|
+| `calendar:calendar` | Read | Get calendar information |
+| `calendar:calendar_event` | Write | Create calendar events |
+| `calendar:calendar_event:attendee` | Write | Invite users to events |
 
-Import to Google Calendar, Apple Calendar, or any iCal-compatible app.
+### Configuration Steps
+
+1. Log in to [Feishu Open Platform](https://open.feishu.cn)
+2. Select your app
+3. Go to **权限管理** (Permission Management)
+4. Search and add the required permissions:
+   - `calendar:calendar`
+   - `calendar:calendar_event`
+   - `calendar:calendar_event:attendee`
+5. Wait for permission approval (if required)
+
+### How It Works
+
+The skill uses a two-step process to create events and invite users:
+
+1. **Create Event**: Creates the calendar event
+2. **Add Attendee**: Uses `calendarEventAttendee.create` API to invite you
+
+This ensures you receive proper notifications and can see the event in your calendar.
+
+## Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--work=N` | Work duration (minutes) | `--work=50` |
+| `--break=N` | Break duration (minutes) | `--break=10` |
+| `--no-calendar` | Skip iCal export | `--no-calendar` |
+| `--feishu-calendar` | Create Feishu event | `--feishu-calendar` |
 
 ## Files
 
@@ -85,38 +107,51 @@ Import to Google Calendar, Apple Calendar, or any iCal-compatible app.
 └── calendar.ics    # iCal export
 ```
 
-## Script Usage
+## iCal Export
 
-```bash
-# Start session
-./scripts/pomodoro.sh start "写代码" 25
+Sessions are automatically exported to iCal format:
 
-# Check status
-./scripts/pomodoro.sh status
+**File location:** `~/.openclaw/pomodoro/calendar.ics`
 
-# Stop session
-./scripts/pomodoro.sh stop
+**Import to Google Calendar:**
+1. Go to Google Calendar → Settings
+2. Import & Export → Import
+3. Select `calendar.ics` file
 
-# List sessions
-./scripts/pomodoro.sh list today
+**Import to Apple Calendar:**
+1. File → Import
+2. Select `calendar.ics`
 
-# Show statistics
-./scripts/pomodoro.sh stats 7
-```
+## Troubleshooting
 
-## Options
+### No notification on completion
+- Check if `notify-send` is installed (Linux)
+- Check system notification settings
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--work=N` | Work duration (minutes) | `--work=50` |
-| `--break=N` | Break duration (minutes) | `--break=10` |
-| `--no-calendar` | Skip calendar export | `--no-calendar` |
+### Calendar file not created
+- Ensure `~/.openclaw/pomodoro/` directory exists
+- Check write permissions
 
-## Requirements
+### Feishu calendar not working
+- Verify app has required permissions
+- Check permission approval status
+- Run test: `node scripts/feishu_calendar.js create-event "test"`
 
-- Bash
-- Python 3
-- `notify-send` (Linux, for notifications)
+### Session not saved
+- Check `log.json` file permissions
+- Ensure disk space available
+
+## API Reference
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `start <task> [duration]` | Start a pomodoro session |
+| `stop` | Stop current pomodoro |
+| `status` | Show current status |
+| `list [today\|yesterday\|all]` | List sessions |
+| `stats [days]` | Show statistics |
 
 ## License
 
