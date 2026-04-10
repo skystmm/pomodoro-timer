@@ -176,13 +176,23 @@ with open(sys.argv[1], 'w') as f:
 PYEOF
         fi
         
+        # System notification
         notify-send "🍅 Pomodoro Complete!" "Time for a ${break_duration} minute break!" 2>/dev/null || true
+        
+        # Feishu notification
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        node "$script_dir/feishu_notify.js" \
+            "🍅 番茄钟完成！" \
+            "任务「$task」已完成，休息 ${break_duration} 分钟吧！" \
+            2>/dev/null || true
+        
         save_session "$task" "$start_ts" "$end_ts" "$duration" "completed"
         
     ) &
     
     echo ""
     echo "⏰ You will be notified when the pomodoro ends."
+    echo "📨 Feishu notification will be sent to the group chat."
 }
 
 # Stop current pomodoro
