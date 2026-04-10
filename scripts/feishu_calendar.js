@@ -10,47 +10,13 @@ const client = new lark.Client({
   appType: lark.AppType.SelfBuild,
 });
 
-// 获取主日历 ID
-async function getPrimaryCalendar() {
-  try {
-    const response = await client.calendar.calendar.list({
-      params: {
-        page_size: 50
-      }
-    });
-    
-    if (response.code !== 0) {
-      console.error('Error:', response.msg);
-      return null;
-    }
-    
-    const calendars = response.data?.calendars || [];
-    const primary = calendars.find(c => c.type === 'primary');
-    
-    if (primary) {
-      return primary.calendar_id;
-    }
-    
-    // 如果没有 primary，返回第一个
-    return calendars[0]?.calendar_id || null;
-  } catch (error) {
-    console.error('Failed to get calendar:', error.message);
-    return null;
-  }
-}
-
 // 创建日程
 async function createEvent(summary, startTime, endTime, description = '') {
   try {
-    // 获取主日历 ID
-    const calendarId = await getPrimaryCalendar();
+    // 使用 primary 作为日历 ID（用户的主日历）
+    const calendarId = 'primary';
     
-    if (!calendarId) {
-      console.error('No calendar found');
-      return null;
-    }
-    
-    console.log('Using calendar:', calendarId);
+    console.log('Creating event in primary calendar...');
     
     const response = await client.calendar.calendarEvent.create({
       data: {
@@ -92,15 +58,6 @@ async function main() {
   const action = args[0];
   
   switch (action) {
-    case 'get-calendar':
-      const calendarId = await getPrimaryCalendar();
-      if (calendarId) {
-        console.log('Primary calendar ID:', calendarId);
-      } else {
-        console.log('No calendar found');
-      }
-      break;
-      
     case 'create-event':
       const summary = args[1] || '番茄钟';
       const startTime = parseInt(args[2]) || Math.floor(Date.now() / 1000);
@@ -115,7 +72,6 @@ async function main() {
       
     default:
       console.log('Usage:');
-      console.log('  node feishu_calendar.js get-calendar');
       console.log('  node feishu_calendar.js create-event <summary> <startTime> <endTime> [description]');
   }
 }
