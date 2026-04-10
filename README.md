@@ -63,11 +63,12 @@ To use the Feishu calendar integration, you need to configure permissions in [Fe
 
 ### Required Permissions
 
-| Permission | Scope | Description |
-|------------|-------|-------------|
-| `calendar:calendar` | Read | Get calendar information |
-| `calendar:calendar_event` | Write | Create calendar events |
-| `calendar:calendar_event:attendee` | Write | Invite users to events |
+| Permission | Description |
+|------------|-------------|
+| `calendar:calendar` | 获取日历信息 |
+| `calendar:calendar.event:create` | 创建日程 |
+| `calendar:calendar.event:update` | 更新日程 |
+| `contact:user.employee_id:readonly` | 获取用户信息（用于邀请） |
 
 ### Configuration Steps
 
@@ -76,8 +77,9 @@ To use the Feishu calendar integration, you need to configure permissions in [Fe
 3. Go to **权限管理** (Permission Management)
 4. Search and add the required permissions:
    - `calendar:calendar`
-   - `calendar:calendar_event`
-   - `calendar:calendar_event:attendee`
+   - `calendar:calendar.event:create`
+   - `calendar:calendar.event:update`
+   - `contact:user.employee_id:readonly`
 5. Wait for permission approval (if required)
 
 ### How It Works
