@@ -269,36 +269,75 @@ END:VEVENT
 
 ### Feishu Calendar Integration
 
-**Important Notes:**
+**重要说明：** 要将日程写入用户主日历，需要用户授权。
 
-日程创建成功后，用户可能需要在飞书日历中手动查看：
+#### 快速授权流程
 
-1. **打开飞书日历**
-2. **查看左侧日历列表** - 找到应用创建的日历
-3. **搜索日程标题** - 直接搜索"🍅 任务名"
+**步骤 1: 获取授权链接**
+```
+用户：授权飞书日历
+助手：[生成授权链接]
+```
 
-**当前限制：**
-- 使用应用身份创建日程，日程会在应用的日历中
-- 用户需要订阅应用的日历，或在"已邀请"列表中查看
-- 如果需要直接写入用户主日历，需要获取用户授权（user_access_token）
+**步骤 2: 点击链接授权**
+- 在浏览器中打开授权链接
+- 点击"允许"授权飞书日历访问
 
-**使用方法：**
+**步骤 3: 复制授权码**
+- 授权后会跳转到回调页面
+- 从URL中复制 `code` 参数
+- 告诉我：`授权码: xxx`
+
+**步骤 4: 完成授权**
+```
+用户：授权码: oaxxxxxxx
+助手：✅ 授权成功！现在日程会写入你的日历。
+```
+
+#### 命令行方式
+
+```bash
+cd ~/.openclaw/skills/pomodoro-timer/scripts
+
+# 1. 生成授权链接
+node feishu_oauth.js auth
+
+# 2. 用授权码换取token
+node feishu_oauth.js exchange <code>
+
+# 3. 检查授权状态
+node feishu_oauth.js check
+```
+
+#### 配置要求
+
+**飞书开放平台配置：**
+
+1. 登录 https://open.feishu.cn
+2. 选择应用「平台开发」
+3. 安全设置 → 重定向 URL → 添加：
+   ```
+   https://stxl117.top/pomodoro/callback
+   ```
+4. 权限管理 → 添加权限：
+   - `calendar:calendar` - 获取日历
+   - `calendar:calendar_event` - 创建日程
+
+#### 使用
+
+授权成功后：
 ```
 用户：设置番茄钟 写代码，同步到飞书日程
-助手：[执行] scripts/pomodoro.sh start "写代码" --feishu-calendar
+助手：🍅 番茄钟已启动！
+  📅 日程已写入你的飞书日历！
 ```
 
-**查看日程：**
-```
-1. 打开飞书日历应用
-2. 左侧日历列表中找到"平台开发"或应用名
-3. 勾选显示该日历
-4. 或直接搜索"🍅 写代码"
-```
+---
 
-**配置要求：**
-- App 已配置日历权限：`calendar:calendar:readonly` 和 `calendar:calendar_event:write`
-- 日程会创建成功，但可能在应用的日历中而非用户主日历
+**授权链接：**
+```
+https://open.feishu.cn/open-apis/authen/v1/authorize?app_id=cli_a92cc69bba7a9bdb&redirect_uri=https%3A%2F%2Fstxl117.top%2Fpomodoro%2Fcallback&scope=calendar%3Acalendar+calendar%3Acalendar_event
+```
 
 ## Troubleshooting
 
