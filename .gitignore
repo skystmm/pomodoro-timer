@@ -1,0 +1,22 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Skill package
+*.skill
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Pomodoro data (user-specific)
+*.json
+*.ics
